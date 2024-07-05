@@ -10,7 +10,7 @@ parameter_sets = [
 ]
 
 # Path to your benchmark.py script
-benchmark_script = '/content/spring2024-assignment2-systems/cs336-systems/cs336_systems/benchmark_lm.py'
+benchmark_script = '/content/spring2024-assignment2-systems/cs336-systems/cs336_systems/measure_lm_runtime.py'
 
 # Iterate over parameter sets and execute benchmark.py
 print("Benchmarking forward pass")
@@ -20,7 +20,8 @@ for d_model, num_layers, num_heads in parameter_sets:
         '--d_model', str(d_model),
         '--num_layers', str(num_layers),
         '--num_heads', str(num_heads),
-        '--mode', 'forward'
+        '--model_mode', 'forward',
+        '--measure', 'benchmark'
     ]
     
     print(command)
@@ -39,7 +40,8 @@ for d_model, num_layers, num_heads in parameter_sets:
         '--d_model', str(d_model),
         '--num_layers', str(num_layers),
         '--num_heads', str(num_heads),
-        '--mode', 'full'
+        '--model_mode', 'full',
+        '--measure', 'benchmark'    
     ]
     print(command)
 

@@ -13,6 +13,7 @@ import timeit
 
 
 from cs336_basics.model import BasicsTransformerLM
+from cs336_basics.optimizer import AdamW
 import cs336_basics.nn_utils as nn_utils
 from cs336_basics.data import get_batch
 from cs336_systems.common import get_device
@@ -31,7 +32,16 @@ DFF_MULTIPLIER = 4
 
 def create_model(args) -> BasicsTransformerLM:
     d_ff = 4 * args.d_model
-    return BasicsTransformerLM(VOCAB_SIZE, CONTEXT_LEN, args.d_model, args.num_layers, args.num_heads, d_ff)
+    return BasicsTransformerLM(VOCAB_SIZE, CONTEXT_LEN, args.d_model, args.num_layers, args.num_heads, d_ff).to(get_device())
+
+def initialize_optimizer(args, model: BasicsTransformerLM) -> AdamW:
+    optimizer = AdamW(
+        model.parameters(),
+        lr=3e-3,
+        betas=(0.9, 0.999),
+        eps=1e-8,
+    )
+    return optimizer
 
 def create_arg_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
@@ -50,9 +60,11 @@ def create_arg_parser() -> argparse.ArgumentParser:
     )
 
     # Add an argument with choices
-    parser.add_argument('--mode', choices=['forward', 'full'], required= True,
+    parser.add_argument('--model_mode', choices=['forward', 'full'], required= True,
                         help='Choose one of the three options: forward, backward, or full')
 
+    parser.add_argument('--measure', choices=['profile', 'benchmark'], required= True,
+                        help='Choose one of the three options: profile, benchmark')
    
     # Optional arguments
     parser.add_argument(
@@ -81,7 +93,6 @@ def benchmark(model: BasicsTransformerLM, x: torch.LongTensor, y: torch.LongTens
     steps_warmup = 2
     for i in range(steps_warmup):
         full_pass(model, x, y)
-        logger.debug(f"#{i}: {runtime: .2e}s")
     torch.cuda.synchronize()
     
     # Benchmark
@@ -104,9 +115,49 @@ def benchmark(model: BasicsTransformerLM, x: torch.LongTensor, y: torch.LongTens
         "mean" : np.mean(runtimes),
         "std" : np.std(runtimes),
     }
-    logger.info(f"Mean: {results["mean"]: .2e}, Std: {results["std"]: .2e}")
+    logger.info(f"Mean: {results['mean']: .2e}, Std: {results['std']: .2e}")
     return results
 
+
+### Profiling code: Don't profile while benchmarking
+from torch.profiler import profile, record_function, ProfilerActivity
+def run_step(model, inputs, targets, optimizer, run_backward = False):
+    # Aggregate activity
+    with record_function('forward_pass'):
+        loss = forward_pass(model, inputs, targets)
+    
+    if run_backward:
+        with record_function('backward_pass'):
+            loss.backward()
+        with record_function('gradient_clipping'):
+            nn_utils.clip_gradient(model.parameters(), 1.0)
+        with record_function('optimizer'):
+            optimizer.step()
+
+def profile_lm(model, inputs, targets,  nsteps = 10, run_backward = False):
+    optimizer = initialize_optimizer(model)
+    # Warmup with one full pass
+    full_pass(model, inputs, inputs)
+    torch.cuda.synchronize()
+
+    # Profile code:
+    with profile(
+        activities= [ProfilerActivity.CPU, ProfilerActivity.CUDA],
+        experimental_config=torch._C._profiler._ExperimentalConfig(verbose=True), # ??? Not sure why we need this ???
+        record_shapes=True,
+        profile_memory=False,
+        with_stack=True # So we can capture and export to flame-graph
+    ) as prof:
+        for _ in range(nsteps):
+            run_step(model, inputs, targets, optimizer, run_backward)
+            # Marks the beginning and potentially the end of the code region you want to profile
+            prof.step()
+    
+    # Export CUDA stacks (ignores CPU ones)
+    prof.export_stacks("lm_profiler_stacks.txt", "self_cuda_time_total")
+
+    # Print output
+    print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=50))
 
 if __name__ == '__main__':
     args = create_arg_parser().parse_args()
@@ -121,6 +172,9 @@ if __name__ == '__main__':
     input_batch, target_batch = get_batch(dataset, CONTEXT_LEN, BATCH_SIZE, str(get_device()))
     logger.debug(f"Benchmarking model in {args.mode} mode.")
 
-    # Run benchmark
-    benchmark(transformer_lm, input_batch, target_batch, args.mode)
+    # Run benchmark or profiler
+    if args.measure == 'benchmark':
+        benchmark(transformer_lm, input_batch, target_batch, args.mode)
+    else:
+        profile_lm(transformer_lm, input_batch, target_batch, args.mode=='full')
 
