@@ -94,22 +94,21 @@ def full_pass(model: BasicsTransformerLM, x: torch.LongTensor, y: torch.LongTens
     # # Clip gradients (part of optimizer)
     # nn_utils.gradient_clipping(model.parameters(), 1.0)
 
-def benchmark(model: BasicsTransformerLM, x: torch.LongTensor, y: torch.LongTensor, run_backward = False, mixed_precision = False):
+def benchmark(model: BasicsTransformerLM, x: torch.LongTensor, y: torch.LongTensor, nsteps, run_backward = False, mixed_precision = False):
     # Warmup with only forward pass
     logger.debug("Starting warmup")
-    steps_warmup = 2
+    steps_warmup = 3
     for i in range(steps_warmup):
         full_pass(model, x, y)
     torch.cuda.synchronize()
     
     # Benchmark
     logger.debug("Finished warmup. Starting benchmark")
-    steps_benchmark = 5
     runtimes = np.zeros(steps_benchmark)
 
-    autocast_context = torch.autocast(get_device()) if mixed_precision else contextlib.nullcontext
+    autocast_context = torch.autocast('cuda') if mixed_precision else contextlib.nullcontext()
     with autocast_context:
-        for i in range(steps_benchmark):
+        for i in range(nsteps):
             start_t = timeit.default_timer()
             if run_backward:
                 full_pass(model, x, y)
@@ -151,7 +150,7 @@ def profile_lm(model, inputs, targets,  nsteps, run_backward = False, mixed_prec
     full_pass(model, inputs, inputs)
     torch.cuda.synchronize()
 
-    autocast_context = torch.autocast(get_device()) if mixed_precision else contextlib.nullcontext
+    autocast_context = torch.autocast('cuda') if mixed_precision else contextlib.nullcontext()
     # Profile code:
     with profile(
         activities= [ProfilerActivity.CPU, ProfilerActivity.CUDA],
@@ -187,7 +186,7 @@ if __name__ == '__main__':
 
     # Run benchmark or profiler
     if args.measure == 'benchmark':
-        benchmark(transformer_lm, input_batch, target_batch, run_backward=args.model_mode=='full', mixed_precision=args.mixed_precision)
+        benchmark(transformer_lm, input_batch, target_batch, nsteps=5, run_backward=args.model_mode=='full',  mixed_precision=args.mixed_precision)
     else:
         profile_lm(transformer_lm, input_batch, target_batch, nsteps=5, run_backward=args.model_mode=='full', mixed_precision=args.mixed_precision)
 
