@@ -1,0 +1,111 @@
+**Benchmark results on A100 with warmup:**
+>> forward pass
+
+['python', '/content/spring2024-assignment2-systems/cs336-systems/cs336_systems/benchmark_lm.py', '--d_model', '768', '--num_layers', '12', '--num_heads', '12', '--mode', 'forward']
+INFO - number of non-embedding parameters: 92.63M
+INFO - Mean:  2.94e-02, Std:  1.02e-05
+
+
+['python', '/content/spring2024-assignment2-systems/cs336-systems/cs336_systems/benchmark_lm.py', '--d_model', '1024', '--num_layers', '24', '--num_heads', '16', '--mode', 'forward']
+INFO - number of non-embedding parameters: 312.28M
+INFO - Mean:  8.82e-02, Std:  1.05e-04
+
+
+['python', '/content/spring2024-assignment2-systems/cs336-systems/cs336_systems/benchmark_lm.py', '--d_model', '1280', '--num_layers', '36', '--num_heads', '20', '--mode', 'forward']
+INFO - number of non-embedding parameters: 720.68M
+INFO - Mean:  1.89e-01, Std:  6.54e-05
+
+
+['python', '/content/spring2024-assignment2-systems/cs336-systems/cs336_systems/benchmark_lm.py', '--d_model', '1600', '--num_layers', '48', '--num_heads', '25', '--mode', 'forward']
+INFO - number of non-embedding parameters: 1490.72M
+INFO - Mean:  3.92e-01, Std:  6.98e-05
+
+
+['python', '/content/spring2024-assignment2-systems/cs336-systems/cs336_systems/benchmark_lm.py', '--d_model', '2560', '--num_layers', '32', '--num_heads', '32', '--mode', 'forward']
+INFO - number of non-embedding parameters: 2542.35M
+INFO - Mean:  6.08e-01, Std:  5.62e-05
+INFO: Took nearly all 16GB
+
+
+**Benchmark results on A100 with warmup:**
+>> full pass
+
+['python', '/content/spring2024-assignment2-systems/cs336-systems/cs336_systems/benchmark_lm.py', '--d_model', '768', '--num_layers', '12', '--num_heads', '12', '--mode', 'full']
+INFO - number of non-embedding parameters: 92.63M
+INFO - Mean:  9.03e-02, Std:  6.67e-05
+
+
+['python', '/content/spring2024-assignment2-systems/cs336-systems/cs336_systems/benchmark_lm.py', '--d_model', '1024', '--num_layers', '24', '--num_heads', '16', '--mode', 'full']
+INFO - number of non-embedding parameters: 312.28M
+INFO - Mean:  2.71e-01, Std:  7.38e-05
+
+
+['python', '/content/spring2024-assignment2-systems/cs336-systems/cs336_systems/benchmark_lm.py', '--d_model', '1280', '--num_layers', '36', '--num_heads', '20', '--mode', 'full']
+INFO - number of non-embedding parameters: 720.68M
+INFO - Mean:  5.91e-01, Std:  9.34e-05
+
+
+['python', '/content/spring2024-assignment2-systems/cs336-systems/cs336_systems/benchmark_lm.py', '--d_model', '1600', '--num_layers', '48', '--num_heads', '25', '--mode', 'full']
+INFO - number of non-embedding parameters: 1490.72M
+INFO - Mean:  1.20e+00, Std:  5.87e-05
+
+
+['python', '/content/spring2024-assignment2-systems/cs336-systems/cs336_systems/benchmark_lm.py', '--d_model', '2560', '--num_layers', '32', '--num_heads', '32', '--mode', 'full']
+INFO - number of non-embedding parameters: 2542.35M
+INFO - Mean:  1.85e+00, Std:  9.56e-04
+INFO: Took nearly all 40GB
+
+
+**Benchmark results on A100 without warmup:**
+
+Benchmarking forward pass
+['python', '/content/spring2024-assignment2-systems/cs336-systems/cs336_systems/benchmark_lm.py', '--d_model', '768', '--num_layers', '12', '--num_heads', '12', '--mode', 'forward']
+INFO - number of non-embedding parameters: 92.63M
+INFO - Mean:  1.79e-01, Std:  2.85e-01
+
+
+['python', '/content/spring2024-assignment2-systems/cs336-systems/cs336_systems/benchmark_lm.py', '--d_model', '1024', '--num_layers', '24', '--num_heads', '16', '--mode', 'forward']
+INFO - number of non-embedding parameters: 312.28M
+INFO - Mean:  2.11e-01, Std:  2.46e-01
+
+
+['python', '/content/spring2024-assignment2-systems/cs336-systems/cs336_systems/benchmark_lm.py', '--d_model', '1280', '--num_layers', '36', '--num_heads', '20', '--mode', 'forward']
+INFO - number of non-embedding parameters: 720.68M
+INFO - Mean:  3.20e-01, Std:  2.62e-01
+
+
+['python', '/content/spring2024-assignment2-systems/cs336-systems/cs336_systems/benchmark_lm.py', '--d_model', '1600', '--num_layers', '48', '--num_heads', '25', '--mode', 'forward']
+INFO - number of non-embedding parameters: 1490.72M
+INFO - Mean:  5.51e-01, Std:  3.18e-01
+
+
+['python', '/content/spring2024-assignment2-systems/cs336-systems/cs336_systems/benchmark_lm.py', '--d_model', '2560', '--num_layers', '32', '--num_heads', '32', '--mode', 'forward']
+INFO - number of non-embedding parameters: 2542.35M
+INFO - Mean:  7.42e-01, Std:  2.69e-01
+
+
+
+Benchmarking full pass
+['python', '/content/spring2024-assignment2-systems/cs336-systems/cs336_systems/benchmark_lm.py', '--d_model', '768', '--num_layers', '12', '--num_heads', '12', '--mode', 'full']
+INFO - number of non-embedding parameters: 92.63M
+INFO - Mean:  2.37e-01, Std:  2.81e-01
+
+
+['python', '/content/spring2024-assignment2-systems/cs336-systems/cs336_systems/benchmark_lm.py', '--d_model', '1024', '--num_layers', '24', '--num_heads', '16', '--mode', 'full']
+INFO - number of non-embedding parameters: 312.28M
+INFO - Mean:  4.05e-01, Std:  2.69e-01
+
+
+['python', '/content/spring2024-assignment2-systems/cs336-systems/cs336_systems/benchmark_lm.py', '--d_model', '1280', '--num_layers', '36', '--num_heads', '20', '--mode', 'full']
+INFO - number of non-embedding parameters: 720.68M
+INFO - Mean:  7.40e-01, Std:  2.98e-01
+
+
+['python', '/content/spring2024-assignment2-systems/cs336-systems/cs336_systems/benchmark_lm.py', '--d_model', '1600', '--num_layers', '48', '--num_heads', '25', '--mode', 'full']
+INFO - number of non-embedding parameters: 1490.72M
+INFO - Mean:  1.36e+00, Std:  3.21e-01
+
+
+['python', '/content/spring2024-assignment2-systems/cs336-systems/cs336_systems/benchmark_lm.py', '--d_model', '2560', '--num_layers', '32', '--num_heads', '32', '--mode', 'full']
+INFO - number of non-embedding parameters: 2542.35M
+INFO - Mean:  1.99e+00, Std:  2.79e-01
