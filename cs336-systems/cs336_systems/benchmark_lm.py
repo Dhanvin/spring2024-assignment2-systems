@@ -78,7 +78,7 @@ def full_pass(model: BasicsTransformerLM, x: torch.LongTensor, y: torch.LongTens
 def benchmark(model: BasicsTransformerLM, x: torch.LongTensor, y: torch.LongTensor, mode: str):
     # Warmup with only forward pass
     logger.info("Starting warmup")
-    steps_warmup = 5
+    steps_warmup = 2
     for i in range(steps_warmup):
         full_pass(model, x, y)
         logger.debug(f"#{i}: {runtime: .2e}s")
@@ -86,7 +86,7 @@ def benchmark(model: BasicsTransformerLM, x: torch.LongTensor, y: torch.LongTens
     
     # Benchmark
     logger.info("Finished warmup. Starting benchmark")
-    steps_benchmark = 10
+    steps_benchmark = 5
     runtimes = np.zeros(steps_benchmark)
     for i in range(steps_benchmark):
         start_t = timeit.default_timer()
@@ -100,11 +100,12 @@ def benchmark(model: BasicsTransformerLM, x: torch.LongTensor, y: torch.LongTens
         logger.debug(f"#{i}: {runtime: .2e}s")
         runtimes[i] = runtime
 
-    avg_t = np.mean(runtimes)
-    median_t = np.percentile(runtimes, 50)
-    min_t = np.min(runtimes)
-    max_t = np.min(runtimes)
-    logger.info(f"Mean: {avg_t: .2e}, Range: [{min_t: .2e}, {max_t: .2e}], Median: {median_t: .2e}")
+    results = {
+        "mean" : np.mean(runtimes),
+        "std" : np.std(runtimes),
+    }
+    logger.info(f"Mean: {results["mean"]: .2e}, Std: {results["std"]: .2e}")
+    return results
 
 
 if __name__ == '__main__':
