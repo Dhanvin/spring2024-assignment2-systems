@@ -34,7 +34,7 @@ def create_model(args) -> BasicsTransformerLM:
     d_ff = 4 * args.d_model
     return BasicsTransformerLM(VOCAB_SIZE, CONTEXT_LEN, args.d_model, args.num_layers, args.num_heads, d_ff).to(get_device())
 
-def initialize_optimizer(args, model: BasicsTransformerLM) -> AdamW:
+def initialize_optimizer(model: BasicsTransformerLM) -> AdamW:
     optimizer = AdamW(
         model.parameters(),
         lr=3e-3,
@@ -87,7 +87,7 @@ def full_pass(model: BasicsTransformerLM, x: torch.LongTensor, y: torch.LongTens
     # # Clip gradients (part of optimizer)
     # nn_utils.gradient_clipping(model.parameters(), 1.0)
 
-def benchmark(model: BasicsTransformerLM, x: torch.LongTensor, y: torch.LongTensor, mode: str):
+def benchmark(model: BasicsTransformerLM, x: torch.LongTensor, y: torch.LongTensor, run_backward = False):
     # Warmup with only forward pass
     logger.debug("Starting warmup")
     steps_warmup = 2
@@ -101,10 +101,11 @@ def benchmark(model: BasicsTransformerLM, x: torch.LongTensor, y: torch.LongTens
     runtimes = np.zeros(steps_benchmark)
     for i in range(steps_benchmark):
         start_t = timeit.default_timer()
-        if mode == 'forward':
-            forward_pass(model, x, y)
-        else:
+        if run_backward:
             full_pass(model, x, y)
+        else:
+            forward_pass(model, x, y)
+
         torch.cuda.synchronize()
         end_t = timeit.default_timer()
         runtime = end_t - start_t
@@ -170,11 +171,11 @@ if __name__ == '__main__':
 
     # Generate random data. Note that the CPU -> GPU data loading is async
     input_batch, target_batch = get_batch(dataset, CONTEXT_LEN, BATCH_SIZE, str(get_device()))
-    logger.debug(f"Benchmarking model in {args.mode} mode.")
+    logger.debug(f"Benchmarking model in {args.model_mode} mode.")
 
     # Run benchmark or profiler
     if args.measure == 'benchmark':
-        benchmark(transformer_lm, input_batch, target_batch, args.mode)
+        benchmark(transformer_lm, input_batch, target_batch, args.model_mode=='full')
     else:
-        profile_lm(transformer_lm, input_batch, target_batch, args.mode=='full')
+        profile_lm(transformer_lm, input_batch, target_batch, args.model_mode=='full')
 
