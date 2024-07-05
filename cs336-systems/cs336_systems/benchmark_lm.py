@@ -77,7 +77,7 @@ def full_pass(model: BasicsTransformerLM, x: torch.LongTensor, y: torch.LongTens
 
 def benchmark(model: BasicsTransformerLM, x: torch.LongTensor, y: torch.LongTensor, mode: str):
     # Warmup with only forward pass
-    logger.info("Starting warmup")
+    logger.debug("Starting warmup")
     steps_warmup = 2
     for i in range(steps_warmup):
         full_pass(model, x, y)
@@ -85,7 +85,7 @@ def benchmark(model: BasicsTransformerLM, x: torch.LongTensor, y: torch.LongTens
     torch.cuda.synchronize()
     
     # Benchmark
-    logger.info("Finished warmup. Starting benchmark")
+    logger.debug("Finished warmup. Starting benchmark")
     steps_benchmark = 5
     runtimes = np.zeros(steps_benchmark)
     for i in range(steps_benchmark):
@@ -114,12 +114,12 @@ if __name__ == '__main__':
         
     # Create model and benchmark
     transformer_lm = create_model(args)
-    logger.info("Loading dataset warmup")
+    logger.debug("Loading dataset warmup")
     dataset = np.random.randint(0, VOCAB_SIZE, size = DATASET_LEN)
 
     # Generate random data. Note that the CPU -> GPU data loading is async
     input_batch, target_batch = get_batch(dataset, CONTEXT_LEN, BATCH_SIZE, str(get_device()))
-    logger.info(f"Benchmarking model in {args.mode} mode.")
+    logger.debug(f"Benchmarking model in {args.mode} mode.")
 
     # Run benchmark
     benchmark(transformer_lm, input_batch, target_batch, args.mode)
