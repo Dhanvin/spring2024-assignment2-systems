@@ -134,6 +134,7 @@ def run_step(model, inputs, targets, optimizer, run_backward = False):
             nn_utils.clip_gradient(model.parameters(), 1.0)
         with record_function('optimizer'):
             optimizer.step()
+            optimizer.zero_grad(set_to_none=True)
 
 def profile_lm(model, inputs, targets,  nsteps = 10, run_backward = False):
     optimizer = initialize_optimizer(model)
@@ -175,7 +176,7 @@ if __name__ == '__main__':
 
     # Run benchmark or profiler
     if args.measure == 'benchmark':
-        benchmark(transformer_lm, input_batch, target_batch, args.model_mode=='full')
+        benchmark(transformer_lm, input_batch, target_batch, run_backward=args.model_mode=='full')
     else:
-        profile_lm(transformer_lm, input_batch, target_batch, args.model_mode=='full')
+        profile_lm(transformer_lm, input_batch, target_batch, nsteps=15, run_backward=args.model_mode=='full')
 
