@@ -152,6 +152,7 @@ def profile_lm(model, inputs, targets,  nsteps = 10, run_backward = False):
     ) as prof:
         for _ in range(nsteps):
             run_step(model, inputs, targets, optimizer, run_backward)
+            torch.cuda.synchronize()  # Wait for CUDA threads to finish (important!)
             # Marks the beginning and potentially the end of the code region you want to profile
             prof.step()
     
@@ -159,7 +160,7 @@ def profile_lm(model, inputs, targets,  nsteps = 10, run_backward = False):
     prof.export_stacks("lm_profiler_stacks.txt", "self_cuda_time_total")
 
     # Print output
-    print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=50))
+    print(prof.key_averages().table(sort_by="cuda_time_total", row_limit=50))
 
 if __name__ == '__main__':
     args = create_arg_parser().parse_args()
