@@ -9,16 +9,21 @@ import logging
 import torch
 import numpy as np
 import numpy.typing as npt
+import timeit
 
 
 from cs336_basics.model import BasicsTransformerLM
+import cs336_basics.nn_utils as nn_utils
 from cs336_basics.data import get_batch
 from cs336_systems.common import get_device
 
 
-logger = logging.Logger(__name__)
+logger = logging.getLogger(__name__)
+def configure_logging(debug=False):
+    level = logging.DEBUG if debug else logging.INFO
+    logging.basicConfig(level=level, format="%(levelname)s - %(message)s")
 
-DATASET_LEN = 100000
+DATASET_LEN = 10000
 VOCAB_SIZE = 10000
 CONTEXT_LEN = 128
 BATCH_SIZE = 16
@@ -45,7 +50,7 @@ def create_arg_parser() -> argparse.ArgumentParser:
     )
 
     # Add an argument with choices
-    parser.add_argument('--mode', choices=['forward', 'backward', 'full'],
+    parser.add_argument('--mode', choices=['forward', 'full'], required= True,
                         help='Choose one of the three options: forward, backward, or full')
 
    
@@ -56,24 +61,65 @@ def create_arg_parser() -> argparse.ArgumentParser:
     
     return parser
 
-def benchmark(model: BasicsTransformerLM, x: torch.LongTensor):
-    # Generate random data. Note that the CPU -> GPU data loading is async
+def forward_pass(model: BasicsTransformerLM, x: torch.LongTensor, y: torch.LongTensor) -> torch.FloatTensor:
+    # Forward (compute loss)
+    pred_logits = model(x)
+    loss = nn_utils.cross_entropy(pred_logits, y)
+    return loss
 
+def full_pass(model: BasicsTransformerLM, x: torch.LongTensor, y: torch.LongTensor):
+    loss = forward_pass(model, x, y)
+    # Backward (compute gradients)
+    loss.backward()
+    return
+    # # Clip gradients (part of optimizer)
+    # nn_utils.gradient_clipping(model.parameters(), 1.0)
+
+def benchmark(model: BasicsTransformerLM, x: torch.LongTensor, y: torch.LongTensor, mode: str):
+    # Warmup with only forward pass
+    logger.info("Starting warmup")
     steps_warmup = 5
+    for i in range(steps_warmup):
+        full_pass(model, x, y)
+        logger.debug(f"#{i}: {runtime: .2e}s")
+    torch.cuda.synchronize()
+    
+    # Benchmark
+    logger.info("Finished warmup. Starting benchmark")
+    steps_benchmark = 10
+    runtimes = np.zeros(steps_benchmark)
+    for i in range(steps_benchmark):
+        start_t = timeit.default_timer()
+        if mode == 'forward':
+            forward_pass(model, x, y)
+        else:
+            full_pass(model, x, y)
+        torch.cuda.synchronize()
+        end_t = timeit.default_timer()
+        runtime = end_t - start_t
+        logger.debug(f"#{i}: {runtime: .2e}s")
+        runtimes[i] = runtime
+
+    avg_t = np.mean(runtimes)
+    median_t = np.percentile(runtimes, 50)
+    min_t = np.min(runtimes)
+    max_t = np.min(runtimes)
+    logger.info(f"Mean: {avg_t: .2e}, Range: [{min_t: .2e}, {max_t: .2e}], Median: {median_t: .2e}")
+
 
 if __name__ == '__main__':
     args = create_arg_parser().parse_args()
-    # Set logging level based on debug argument
-    if args.debug:
-        logger.setLevel(logging.DEBUG)
-        logger.info("Debug logging enabled.")
-    else:
-        logger.setLevel(logging.INFO)
-    
+    configure_logging(args.debug)
+        
     # Create model and benchmark
     transformer_lm = create_model(args)
+    logger.info("Loading dataset warmup")
     dataset = np.random.randint(0, VOCAB_SIZE, size = DATASET_LEN)
+
+    # Generate random data. Note that the CPU -> GPU data loading is async
+    input_batch, target_batch = get_batch(dataset, CONTEXT_LEN, BATCH_SIZE, str(get_device()))
     logger.info(f"Benchmarking model in {args.mode} mode.")
-    device = str(get_device())
-    benchmark(transformer_lm, get_batch(dataset, CONTEXT_LEN, BATCH_SIZE, device))
+
+    # Run benchmark
+    benchmark(transformer_lm, input_batch, target_batch, args.mode)
 
