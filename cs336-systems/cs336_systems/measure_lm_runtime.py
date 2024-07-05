@@ -10,6 +10,8 @@ import torch
 import numpy as np
 import numpy.typing as npt
 import timeit
+from torch.profiler import profile, record_function, ProfilerActivity
+import contextlib
 
 
 from cs336_basics.model import BasicsTransformerLM
@@ -70,6 +72,11 @@ def create_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--debug", action="store_true", help="Include debug logging statements."
     )
+
+    # Optional arguments
+    parser.add_argument(
+        "--mixed_precision", action="store_true", help="Include debug logging statements."
+    )
     
     return parser
 
@@ -87,7 +94,7 @@ def full_pass(model: BasicsTransformerLM, x: torch.LongTensor, y: torch.LongTens
     # # Clip gradients (part of optimizer)
     # nn_utils.gradient_clipping(model.parameters(), 1.0)
 
-def benchmark(model: BasicsTransformerLM, x: torch.LongTensor, y: torch.LongTensor, run_backward = False):
+def benchmark(model: BasicsTransformerLM, x: torch.LongTensor, y: torch.LongTensor, run_backward = False, mixed_precision = False):
     # Warmup with only forward pass
     logger.debug("Starting warmup")
     steps_warmup = 2
@@ -99,18 +106,21 @@ def benchmark(model: BasicsTransformerLM, x: torch.LongTensor, y: torch.LongTens
     logger.debug("Finished warmup. Starting benchmark")
     steps_benchmark = 5
     runtimes = np.zeros(steps_benchmark)
-    for i in range(steps_benchmark):
-        start_t = timeit.default_timer()
-        if run_backward:
-            full_pass(model, x, y)
-        else:
-            forward_pass(model, x, y)
 
-        torch.cuda.synchronize()
-        end_t = timeit.default_timer()
-        runtime = end_t - start_t
-        logger.debug(f"#{i}: {runtime: .2e}s")
-        runtimes[i] = runtime
+    autocast_context = torch.autocast(get_device()) if mixed_precision else contextlib.nullcontext
+    with autocast_context:
+        for i in range(steps_benchmark):
+            start_t = timeit.default_timer()
+            if run_backward:
+                full_pass(model, x, y)
+            else:
+                forward_pass(model, x, y)
+
+            torch.cuda.synchronize()
+            end_t = timeit.default_timer()
+            runtime = end_t - start_t
+            logger.debug(f"#{i}: {runtime: .2e}s")
+            runtimes[i] = runtime
 
     results = {
         "mean" : np.mean(runtimes),
@@ -121,7 +131,6 @@ def benchmark(model: BasicsTransformerLM, x: torch.LongTensor, y: torch.LongTens
 
 
 ### Profiling code: Don't profile while benchmarking
-from torch.profiler import profile, record_function, ProfilerActivity
 def run_step(model, inputs, targets, optimizer, run_backward = False):
     # Aggregate activity
     with record_function('forward_pass'):
@@ -136,12 +145,13 @@ def run_step(model, inputs, targets, optimizer, run_backward = False):
             optimizer.step()
             optimizer.zero_grad(set_to_none=True)
 
-def profile_lm(model, inputs, targets,  nsteps = 10, run_backward = False):
+def profile_lm(model, inputs, targets,  nsteps, run_backward = False, mixed_precision = False):
     optimizer = initialize_optimizer(model)
     # Warmup with one full pass
     full_pass(model, inputs, inputs)
     torch.cuda.synchronize()
 
+    autocast_context = torch.autocast(get_device()) if mixed_precision else contextlib.nullcontext
     # Profile code:
     with profile(
         activities= [ProfilerActivity.CPU, ProfilerActivity.CUDA],
@@ -149,7 +159,7 @@ def profile_lm(model, inputs, targets,  nsteps = 10, run_backward = False):
         record_shapes=True,
         profile_memory=False,
         with_stack=True # So we can capture and export to flame-graph
-    ) as prof:
+    ) as prof, autocast_context:
         for _ in range(nsteps):
             run_step(model, inputs, targets, optimizer, run_backward)
             torch.cuda.synchronize()  # Wait for CUDA threads to finish (important!)
@@ -177,7 +187,7 @@ if __name__ == '__main__':
 
     # Run benchmark or profiler
     if args.measure == 'benchmark':
-        benchmark(transformer_lm, input_batch, target_batch, run_backward=args.model_mode=='full')
+        benchmark(transformer_lm, input_batch, target_batch, run_backward=args.model_mode=='full', mixed_precision=args.mixed_precision)
     else:
-        profile_lm(transformer_lm, input_batch, target_batch, nsteps=15, run_backward=args.model_mode=='full')
+        profile_lm(transformer_lm, input_batch, target_batch, nsteps=5, run_backward=args.model_mode=='full', mixed_precision=args.mixed_precision)
 
