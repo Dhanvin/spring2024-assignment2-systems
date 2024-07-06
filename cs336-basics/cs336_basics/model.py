@@ -94,6 +94,7 @@ class BasicsTransformerLM(nn.Module):
         d_ff: int,
         attn_pdrop: Optional[float] = None,
         residual_pdrop: Optional[float] = None,
+        use_layernorm: Optional[bool] = True,        
     ):
         # Store the model configuration for serialization / deserialization
         self.config = {
@@ -118,7 +119,7 @@ class BasicsTransformerLM(nn.Module):
                 for _ in range(num_layers)
             ]
         )
-        self.ln_final = RMSNorm(d_model)
+        self.ln_final = nn.LayerNorm(normalized_shape=d_model) if use_layernorm else RMSNorm(d_model)
         self.lm_head = nn.Linear(d_model, vocab_size, bias=False)
         # Tie the weights, since the paper mentions that "we share the same weight
         # matrix between the two embedding layers and the pre-softmax linear transformation"

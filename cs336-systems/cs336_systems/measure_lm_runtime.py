@@ -34,7 +34,7 @@ DFF_MULTIPLIER = 4
 
 def create_model(args) -> BasicsTransformerLM:
     d_ff = 4 * args.d_model
-    return BasicsTransformerLM(VOCAB_SIZE, CONTEXT_LEN, args.d_model, args.num_layers, args.num_heads, d_ff).to(get_device())
+    return BasicsTransformerLM(VOCAB_SIZE, CONTEXT_LEN, args.d_model, args.num_layers, args.num_heads, d_ff, args.use_pytorch_layernorm).to(get_device())
 
 def initialize_optimizer(model: BasicsTransformerLM) -> AdamW:
     optimizer = AdamW(
@@ -75,7 +75,12 @@ def create_arg_parser() -> argparse.ArgumentParser:
 
     # Optional arguments
     parser.add_argument(
-        "--mixed_precision", action="store_true", help="Include debug logging statements."
+        "--mixed_precision", action="store_true", help="Run with mixed-precision."
+    )
+
+    # Optional arguments
+    parser.add_argument(
+        "--use_pytorch_layernorm", action="store_true", help="Run model with Pytorch's nn.LayerNorm. By default, we run a custom RmsNorm"
     )
     
     return parser
@@ -94,7 +99,8 @@ def full_pass(model: BasicsTransformerLM, x: torch.LongTensor, y: torch.LongTens
     # # Clip gradients (part of optimizer)
     # nn_utils.gradient_clipping(model.parameters(), 1.0)
 
-def benchmark(model: BasicsTransformerLM, x: torch.LongTensor, y: torch.LongTensor, nsteps, run_backward = False, mixed_precision = False):
+def benchmark(model: BasicsTransformerLM, x: torch.LongTensor, y: torch.LongTensor, 
+              nsteps, run_backward = False, mixed_precision = False):
     # Warmup with only forward pass
     logger.debug("Starting warmup")
     steps_warmup = 3
@@ -104,8 +110,7 @@ def benchmark(model: BasicsTransformerLM, x: torch.LongTensor, y: torch.LongTens
     
     # Benchmark
     logger.debug("Finished warmup. Starting benchmark")
-    runtimes = np.zeros(steps_benchmark)
-
+    runtimes = np.zeros(nsteps)
     autocast_context = torch.autocast('cuda') if mixed_precision else contextlib.nullcontext()
     with autocast_context:
         for i in range(nsteps):
@@ -186,7 +191,9 @@ if __name__ == '__main__':
 
     # Run benchmark or profiler
     if args.measure == 'benchmark':
-        benchmark(transformer_lm, input_batch, target_batch, nsteps=5, run_backward=args.model_mode=='full',  mixed_precision=args.mixed_precision)
+        benchmark(transformer_lm, input_batch, target_batch, nsteps=5, 
+                  run_backward=args.model_mode=='full',  mixed_precision=args.mixed_precision)
     else:
-        profile_lm(transformer_lm, input_batch, target_batch, nsteps=5, run_backward=args.model_mode=='full', mixed_precision=args.mixed_precision)
+        profile_lm(transformer_lm, input_batch, target_batch, nsteps=5, 
+                   run_backward=args.model_mode=='full', mixed_precision=args.mixed_precision)
 
