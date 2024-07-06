@@ -5,7 +5,7 @@ from typing import Type
 
 import torch
 
-
+from cs336_systems.rms_kernel import RmsNormVanillaFunc, RmsNormTritonFunc
 def get_rmsnorm_autograd_function_pytorch() -> Type:
     """
     Returns a torch.autograd.Function subclass that implements RMSNorm.
@@ -16,6 +16,7 @@ def get_rmsnorm_autograd_function_pytorch() -> Type:
         A class object (not an instance of the class)
     """
     # For example: return MyRMSNormAutogradFunctionClass
+    return RmsNormVanillaFunc
     raise NotImplementedError
 
 
@@ -32,6 +33,7 @@ def get_rmsnorm_autograd_function_triton() -> Type:
         A class object (not an instance of the class)
     """
     # For example: return MyTritonRMSNormAutogradFunctionClass
+    return RmsNormTritonFunc
     raise NotImplementedError
 
 

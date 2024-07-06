@@ -1,5 +1,13 @@
 # Benchmarking just RmsNorm implementation v/s nn.LayerNorm
 # Findings >> Empirically, RmsNorm is 3-4x slower than nn.LayerNorm
+
+# End-to-end via measure_lm_runtime
+# !python cs336-systems/cs336_systems/measure_lm_runtime.py --d_model=1600 --num_layers=48 --num_heads=25 --model_mode=forward --measure=benchmark --mixed_precision --use_pytorch_layernorm
+# !python cs336-systems/cs336_systems/measure_lm_runtime.py --d_model=1600 --num_layers=48 --num_heads=25 --model_mode=forward --measure=benchmark --mixed_precision 
+# TransformerLM (LayerNorm) - Mean:  7.89e-02, Std:  3.68e-02
+# TransformerLM (Rms) - Mean:  8.51e-02, Std:  3.72e-02
+
+
 import torch
 import torch.nn as nn
 import numpy as np
