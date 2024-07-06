@@ -94,7 +94,7 @@ class BasicsTransformerLM(nn.Module):
         d_ff: int,
         attn_pdrop: Optional[float] = None,
         residual_pdrop: Optional[float] = None,
-        use_layernorm: Optional[bool] = True,        
+        use_layernorm: Optional[bool] = False,        
     ):
         # Store the model configuration for serialization / deserialization
         self.config = {
@@ -103,6 +103,8 @@ class BasicsTransformerLM(nn.Module):
             if k != "self" and not (k.startswith("__") and k.endswith("__"))
         }
         super().__init__()
+        normalizing_layer_str = "layer-norm" if use_layernorm else "rms-norm"
+        print(f"TransformerLM::init() -- Configuring model with {normalizing_layer_str}")
         self.context_length = context_length
         self.d_model = d_model
         self.token_embeddings = nn.Embedding(vocab_size, d_model)
@@ -115,6 +117,7 @@ class BasicsTransformerLM(nn.Module):
                     d_ff=d_ff,
                     attn_pdrop=attn_pdrop,
                     residual_pdrop=residual_pdrop,
+                    use_layernorm=use_layernorm,
                 )
                 for _ in range(num_layers)
             ]
@@ -288,6 +291,7 @@ class TransformerBlock(nn.Module):
         d_ff: int,
         attn_pdrop: Optional[float] = None,
         residual_pdrop: Optional[float] = None,
+        use_layernorm: Optional[bool] = False,
     ):
         super().__init__()
         self.attn = CausalMultiHeadSelfAttention(
@@ -295,9 +299,9 @@ class TransformerBlock(nn.Module):
             num_heads=num_heads,
             attn_pdrop=attn_pdrop,
         )
-        self.ln1 = RMSNorm(d_model)
+        self.ln1 = nn.LayerNorm(normalized_shape=d_model) if use_layernorm else RMSNorm(d_model)
         self.ffn = FFN(d_model=d_model, d_ff=d_ff)
-        self.ln2 = RMSNorm(d_model)
+        self.ln2 = nn.LayerNorm(normalized_shape=d_model) if use_layernorm else RMSNorm(d_model)
         self.residual_pdrop = residual_pdrop
 
     def forward(self, x: torch.Tensor):

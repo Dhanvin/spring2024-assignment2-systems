@@ -1,4 +1,5 @@
-# Benchmarking just RMSNorm implementation v/s nn.LayerNorm
+# Benchmarking just RmsNorm implementation v/s nn.LayerNorm
+# Findings >> Empirically, RmsNorm is 3-4x slower than nn.LayerNorm
 import torch
 import torch.nn as nn
 import numpy as np

@@ -34,7 +34,8 @@ DFF_MULTIPLIER = 4
 
 def create_model(args) -> BasicsTransformerLM:
     d_ff = 4 * args.d_model
-    return BasicsTransformerLM(VOCAB_SIZE, CONTEXT_LEN, args.d_model, args.num_layers, args.num_heads, d_ff, args.use_pytorch_layernorm).to(get_device())
+    return BasicsTransformerLM(VOCAB_SIZE, CONTEXT_LEN, args.d_model, args.num_layers, 
+                               args.num_heads, d_ff, use_layernorm=args.use_pytorch_layernorm).to(get_device())
 
 def initialize_optimizer(model: BasicsTransformerLM) -> AdamW:
     optimizer = AdamW(
