@@ -26,7 +26,8 @@ def rms_norm_fwd(
     # Compute pointer offsets
     row_idx = tl.program_id(0)
     row_start_ptr = x_ptr + row_idx * x_row_stride
-    offsets = tl.arange(BLOCK_SIZE)
+    output_row_start_ptr = output_ptr + row_idx * x_row_stride
+    offsets = tl.arange(0, BLOCK_SIZE)
     mask = offsets < d_model
 
     # Load row from x and gain vector
@@ -35,14 +36,14 @@ def rms_norm_fwd(
     g = tl.load(g_ptr + offsets, mask=mask, other=0)
 
     # Perform element-wise vector ops (similar notation as Numpy)
-    x_sum_sq = tl.rsqrt((tl.sum(x_row * x_row) + EPS) / d_model)
-    x_normalized = x_row * x_sum_sq * g
+    x_row_sum_sq = tl.sqrt((tl.sum(x_row * x_row) / d_model) + EPS)
+    x_normalized = (x_row * g) / x_row_sum_sq
 
     # Store output
-    tl.store(output_ptr + offsets, x_normalized, mask=mask)
+    tl.store(output_row_start_ptr + offsets, x_normalized, mask=mask)
 
 # Encapsulated torch.autograd.Function for inter-operation with Pytorch
-class RmsNormTritonFunc(torch.autograd.Func):
+class RmsNormTritonFunc(torch.autograd.Function):
     @staticmethod
     def forward(ctx, x, gains):
         """
@@ -59,14 +60,15 @@ class RmsNormTritonFunc(torch.autograd.Func):
         assert gains.is_contiguous()
         assert gains.shape == (d_model,)
 
-        ctx.BLOCK_SIZE = tl.nearest_power_of_2(d_model)
+        ctx.BLOCK_SIZE = triton.next_power_of_2(d_model)
 
         # Create a 2D view into x to compute stride.
         # -1 tells Pytorch to infer the size of that dimension automatically
         x_2d = x.view(-1, d_model)
         out_2d = torch.empty_like(x_2d)
-        n_programs = x_2d.shape[-1]
+        n_programs = x_2d.shape[0]
         row_stride = x_2d.stride(0)
+        # breakpoint()
 
         # Create a 1D program-grid. Pass in tensors.
         # Internally, the triton.jit decorator will convert this
@@ -81,7 +83,7 @@ class RmsNormTritonFunc(torch.autograd.Func):
         raise NotImplementedError
 
 
-class RmsNormVanillaFunc(torch.autograd.Func):
+class RmsNormVanillaFunc(torch.autograd.Function):
     @staticmethod
     def forward(ctx, x, gains):
         """
